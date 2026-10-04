@@ -3,89 +3,119 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Admin — Cybot 420 Panel</title>
+<title>Cybot 420 — Deploy Your Bot</title>
 <style>
-  :root{--bg:#0b1020;--panel:#121a33;--panel2:#182246;--accent:#36e2a3;--text:#eef2ff;--sub:#9aa5c7;--danger:#ff6b6b}
+  :root{--bg:#0b1020;--panel:#121a33;--panel2:#182246;--accent:#36e2a3;--text:#eef2ff;--sub:#9aa5c7}
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,Roboto,sans-serif;padding:16px}
-  h1{font-size:18px;text-align:center}
-  input{width:100%;padding:10px;border-radius:8px;border:1px solid #263163;background:var(--panel2);color:var(--text);margin-bottom:10px}
-  button{padding:8px 12px;border:none;border-radius:8px;background:var(--accent);color:#06251a;font-weight:700;font-size:12px;cursor:pointer}
-  button.danger{background:var(--danger);color:#2a0a0a}
-  .card{background:var(--panel);border-radius:12px;padding:12px;margin-bottom:10px;border:1px solid #263163}
-  .row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px}
-  .num{font-weight:700;font-size:14px}
-  .tag{font-size:11px;padding:3px 8px;border-radius:10px;font-weight:700}
-  .tag.active{background:#0f3d2a;color:var(--accent)}
-  .tag.expired{background:#3d1414;color:var(--danger)}
-  .tag.free{background:#3a3417;color:#ffd166}
-  .tag.pending{background:#182246;color:var(--sub)}
-  .meta{font-size:12px;color:var(--sub);width:100%}
-  .btns{display:flex;gap:8px;margin-top:8px}
-  #login{max-width:300px;margin:60px auto}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,Roboto,sans-serif;display:flex;justify-content:center;padding:20px 14px}
+  .wrap{max-width:420px;width:100%}
+  h1{font-size:20px;text-align:center;margin-bottom:4px}
+  p.sub{color:var(--sub);text-align:center;font-size:13px;margin-top:0;margin-bottom:24px}
+  .card{background:var(--panel);border-radius:14px;padding:18px;border:1px solid #263163;margin-bottom:14px}
+  input{width:100%;padding:12px;border-radius:8px;border:1px solid #263163;background:var(--panel2);color:var(--text);font-size:15px}
+  button{width:100%;padding:14px;border:none;border-radius:10px;background:var(--accent);color:#06251a;font-weight:800;font-size:15px;margin-top:10px;cursor:pointer}
+  button:disabled{background:#3a4166;color:#6b7399}
+  .code{font-size:32px;font-weight:800;letter-spacing:4px;text-align:center;color:#ffd166;margin:14px 0}
+  .status{text-align:center;font-size:13px;color:var(--sub);margin-top:8px}
+  .steps{font-size:13px;color:var(--sub);line-height:1.8;margin-top:10px}
+  .ok{color:var(--accent);font-weight:700}
 </style>
 </head>
 <body>
-<div id="login">
-  <h1>🔒 Admin Login</h1>
-  <input id="pw" type="password" placeholder="Admin password">
-  <button style="width:100%" onclick="login()">Enter</button>
-</div>
+<div class="wrap">
+  <h1>⚡ Deploy Cybot 420</h1>
+  <p class="sub">Enter your WhatsApp number to get your own bot instance.</p>
 
-<div id="dashboard" style="display:none;max-width:500px;margin:0 auto">
-  <h1>📊 Deployed Bots</h1>
-  <div id="list"></div>
+  <div class="card" id="formCard">
+    <input id="numberInput" type="tel" placeholder="e.g. 254712345678 (with country code)">
+    <button id="deployBtn" onclick="deploy()">Deploy My Bot</button>
+  </div>
+
+  <div class="card" id="resultCard" style="display:none"></div>
 </div>
 
 <script>
-let password = '';
+let polling = null;
+let currentNumber = null;
 
-function login(){
-  password = document.getElementById('pw').value;
-  document.getElementById('login').style.display = 'none';
-  document.getElementById('dashboard').style.display = 'block';
-  load();
-  setInterval(load, 8000);
-}
+async function deploy(){
+  const number = document.getElementById('numberInput').value.replace(/\D/g,'');
+  if(number.length < 9){ alert('Enter a valid number with country code'); return; }
+  currentNumber = number;
+  document.getElementById('deployBtn').disabled = true;
+  document.getElementById('deployBtn').textContent = 'Starting...';
 
-async function load(){
-  const r = await fetch('/api/admin/users?password='+encodeURIComponent(password));
-  if(r.status === 401){ alert('Wrong password'); location.reload(); return; }
-  const users = await r.json();
-  const el = document.getElementById('list');
-  if(users.length === 0){ el.innerHTML = '<div class="meta">No users yet.</div>'; return; }
-  el.innerHTML = users.map(u => {
-    const tagClass = u.free ? 'free' : (u.subStatus==='active' ? 'active' : ((u.subStatus==='pending' || u.subStatus==='pending_manual') ? 'pending' : 'expired'));
-    const tagText = u.free ? 'FREE FRIEND' : (u.subStatus==='pending_manual' ? 'PAYMENT CLAIMED — CHECK M-PESA' : u.subStatus.toUpperCase());
-    return `<div class="card">
-      <div class="row">
-        <span class="num">${u.number}</span>
-        <span class="tag ${tagClass}">${tagText}</span>
-      </div>
-      <div class="meta">Bot: ${u.botStatus} · Days left: ${u.daysLeft}</div>
-      <div class="btns">
-        <button onclick="extend('${u.number}')">+30 days</button>
-        <button class="danger" onclick="deactivate('${u.number}')">Deactivate</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-async function extend(number){
-  await fetch('/api/admin/extend', {
+  const r = await fetch('/api/deploy', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ password, number, days: 30 })
+    body: JSON.stringify({ number })
   });
-  load();
+  const data = await r.json();
+  document.getElementById('resultCard').style.display = 'block';
+
+  if(data.status === 'payment_required'){
+    document.getElementById('resultCard').innerHTML = `
+      <div class="status">This bot costs KES ${data.price} for 30 days of access</div>
+      <div class="steps" style="margin-top:10px">
+        1. Open M-Pesa on your phone<br>
+        2. Send Money to <b style="color:#ffd166">${data.mpesaNumber}</b><br>
+        3. Amount: <b style="color:#ffd166">KES ${data.price}</b><br>
+        4. Tap "I've Paid" below once sent
+      </div>
+      <button onclick="markPaid()">I've Paid</button>`;
+    document.getElementById('deployBtn').disabled = false;
+    document.getElementById('deployBtn').textContent = 'Deploy My Bot';
+  } else {
+    startPolling(number);
+  }
 }
 
-async function deactivate(number){
-  if(!confirm('Deactivate '+number+'\'s bot now?')) return;
-  await fetch('/api/admin/deactivate', {
+async function markPaid(){
+  document.getElementById('resultCard').innerHTML = `<div class="status">Notifying admin to confirm your payment...</div>`;
+  await fetch('/api/request-payment', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ password, number })
+    body: JSON.stringify({ number: currentNumber })
   });
-  load();
+  document.getElementById('resultCard').innerHTML = `<div class="status">Waiting for admin to confirm your payment — this page will update automatically once approved.</div>`;
+  startPolling(currentNumber);
+}
+
+function startPolling(number){
+  if(polling) clearInterval(polling);
+  polling = setInterval(async ()=>{
+    const res = await fetch('/api/status/'+number);
+    const data = await res.json();
+    render(number, data);
+    if(data.status === 'online'){
+      clearInterval(polling);
+    }
+  }, 2000);
+}
+
+function render(number, data){
+  const el = document.getElementById('resultCard');
+  if(data.status === 'awaiting_pair' && data.code){
+    el.innerHTML = `
+      <div class="status">Pairing code for ${number}</div>
+      <div class="code">${data.code}</div>
+      <div class="steps">
+        1. Open WhatsApp on this number<br>
+        2. Settings → Linked devices → Link a device<br>
+        3. Tap "Link with phone number instead"<br>
+        4. Enter the code above now
+      </div>`;
+  } else if(data.status === 'online'){
+    el.innerHTML = `<div class="status ok">✅ Your bot is online! Send it !menu on WhatsApp to get started.</div>`;
+  } else if(data.status === 'connecting'){
+    el.innerHTML = `<div class="status">Connecting... requesting pairing code</div>`;
+  } else if(data.status === 'error'){
+    el.innerHTML = `<div class="status" style="color:#ff6b6b">Error: ${data.error||'something went wrong'}. Try again.</div>`;
+  } else if(data.status === 'logged_out'){
+    el.innerHTML = `<div class="status" style="color:#ff6b6b">Logged out. Deploy again to get a new pairing code.</div>`;
+  } else if(data.status === 'pending_manual'){
+    el.innerHTML = `<div class="status">Payment noted — waiting for admin to confirm and activate your bot...</div>`;
+  } else {
+    el.innerHTML = `<div class="status">${data.status}</div>`;
+  }
 }
 </script>
 </body>
