@@ -68,3 +68,22 @@ async function load(){
         <button onclick="extend('${u.number}')">+30 days</button>
         <button class="danger" onclick="deactivate('${u.number}')">Deactivate</button>
   </div>
+async function extend(number){
+  await fetch('/api/admin/extend', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ password, number, days: 30 })
+  });
+  load();
+}
+
+async function deactivate(number){
+  if(!confirm('Deactivate '+number+'\'s bot now?')) return;
+  await fetch('/api/admin/deactivate', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ password, number })
+  });
+  load();
+}
+</script>
+</body>
+</html>
